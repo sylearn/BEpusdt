@@ -47,6 +47,24 @@ func TestSolanaLookbackDropsRangeOfFinishedOrders(t *testing.T) {
 	}
 }
 
+func TestSolanaLookbackDropsRangeOutsideLookbackWindow(t *testing.T) {
+	initTaskTestEnv(t, map[model.ConfKey]string{model.PaymentLookbackHour: "3"})
+	lookbackDone.Clear()
+
+	expired := createSolanaLookbackOrder(t, "lookback-too-old", model.OrderStatusExpired)
+	if err := model.Db.Model(&expired).Update("expired_at", time.Now().Add(-4*time.Hour)).Error; err != nil {
+		t.Fatalf("move expiration outside lookback window: %v", err)
+	}
+
+	s := newSolana()
+	s.lookbackNext, s.lookbackEnd, s.lookbackOrderIDs = 459552217, 459552221, []int64{expired.ID}
+	s.lookbackSlots(t.Context())
+
+	if s.lookbackNext != 0 || s.lookbackEnd != 0 || s.lookbackOrderIDs != nil {
+		t.Fatalf("expired lookback progress kept: next = %d, end = %d, orders = %v", s.lookbackNext, s.lookbackEnd, s.lookbackOrderIDs)
+	}
+}
+
 // 查询订单失败时不能当作订单已结束，保留进度，下一轮再判断
 func TestSolanaLookbackKeepsRangeOnDatabaseError(t *testing.T) {
 	initTaskTestEnv(t, nil)
