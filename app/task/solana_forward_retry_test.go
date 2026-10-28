@@ -56,7 +56,7 @@ func TestSolanaForwardPausesWhileManySlotsRetry(t *testing.T) {
 	const last = 458000000
 	s := newSolana()
 	s.lastSlotNum = last
-	s.setPendingSlotRetries(last-10, 10)
+	s.setPendingSlotRetries(last-solanaForwardPauseRetries, solanaForwardPauseRetries)
 	head.Store(last + 5)
 	s.syncSlotForward(t.Context())
 
